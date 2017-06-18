@@ -358,7 +358,7 @@ int rangeToCidrSize(uint32_t scanIP, uint32_t from ,uint32_t to)
 
 bbip_result_t *bbip_search(bbip_t *ps, unsigned int ip)
 {
-	static bbip_result_t *rc;
+	bbip_result_t *rc;
 	long key = bbip_query(ps, ip);
 	if (key != 0)
 	{
