@@ -7,10 +7,10 @@
 #include <sys/mman.h>
 #include <arpa/inet.h>
 
-bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *errno)
+bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *bbip_errno)
 {
 	if (fp == NULL) {
-		*errno = 1;
+		*bbip_errno = 1;
 		return NULL;
 	}
 
@@ -19,7 +19,7 @@ bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *errno)
 	fseek(ps->fp,1,SEEK_SET);
 	if (fread(&ps->nCount,sizeof(int),1,ps->fp)!=1){
 		fclose(ps->fp);
-		*errno = 2;
+		*bbip_errno = 2;
 		// php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can't load sinaip library, read error");
 		return NULL;
 	}
@@ -29,7 +29,7 @@ bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *errno)
 	{
 		fclose(ps->fp);
 		// php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can't load sinaip library");
-		*errno = 3;
+		*bbip_errno = 3;
 		return NULL;
 	}
 	
@@ -109,7 +109,7 @@ int bbip_preload(bbip_t *ps)
 	if (fread((ps->index_end+1), sizeof(int), ps->nCount, ps->fp) != ps->nCount) return -1;
 	if (fread((ps->index_ptr+1), sizeof(int), ps->nCount, ps->fp) != ps->nCount) return -1;
 	
-	int i;
+	size_t i;
 	for (i=1;i<=ps->nCount;i++)
 	{
 		ps->index_start[i] = htonl(ps->index_start[i]);
@@ -128,6 +128,25 @@ char *bbip_getstr(bbip_t *ps, unsigned char *len)
 	data = ps->mmap+ps->ptr;
 	//memcpy(data,ps->mmap+ps->ptr,*len);
 	ps->ptr+=*len;
+	return data;
+	/*
+	if (fread(len,sizeof(char),1,ps->fp)!=1) return NULL;
+	if (!*len) return NULL;
+	char *data = (char *)emalloc(*len+1);
+	if (fread(data, sizeof(char), *len, ps->fp)!=*len) return NULL;
+	data[*len] = 0;
+	return data;*/
+}
+
+
+char *bbip_getstr_threadsafe(bbip_t *ps, unsigned char *len, int *ptr)
+{
+	*len = ps->mmap[(*ptr)++];
+	if (!*len) return NULL;
+	char *data;// = (char *)emalloc(*len+1);
+	data = ps->mmap+(*ptr);
+	//memcpy(data,ps->mmap+ps->ptr,*len);
+	(*ptr)+=*len;
 	return data;
 	/*
 	if (fread(len,sizeof(char),1,ps->fp)!=1) return NULL;
@@ -189,7 +208,7 @@ int rangeToCidrSize(uint32_t scanIP, uint32_t from ,uint32_t to)
 	char	fromIp[IP_BINARY_LENGTH];
 	char	toIp[IP_BINARY_LENGTH];
 
-	if (to-from>=4294967296) {
+	if (to-from==4294967295) {
 		return 0;
 	}else if (to-from>=2147483648) {
 		return 1;
@@ -335,4 +354,41 @@ int rangeToCidrSize(uint32_t scanIP, uint32_t from ,uint32_t to)
 		}
 	}
 	return -1;
+}
+
+bbip_result_t *bbip_search(bbip_t *ps, unsigned int ip)
+{
+	static bbip_result_t rc;
+	long key = bbip_query(ps, ip);
+	if (key != 0)
+	{
+		int ptr;
+		if (ps->index_ptr[key] == 0)
+		{
+			ptr = BASE_PTR+(ps->nCount*2+key-1)*sizeof(int);
+			ps->index_ptr[key] = htonl(*(int *)(ps->mmap+ptr));
+			//fseek(ps->fp,BASE_PTR+(ps->nCount*2+key-1)*sizeof(int),SEEK_SET);
+			//if (1 != fread(&ps->index_ptr[key],sizeof(int),1,ps->fp)) RETVAL_FALSE;
+			//ps->index_ptr[key] = htonl(ps->index_ptr[key]);
+		}
+		ptr = ps->index_ptr[key]+4;
+
+		rc.start = ps->index_start[key];
+		rc.end = ps->index_end[key];
+		rc.cidr_bit = rangeToCidrSize(ip, ps->index_start[key],ps->index_end[key]);
+
+		rc.country = bbip_getstr_threadsafe(ps, &rc.country_len, &ptr);
+		rc.province = bbip_getstr_threadsafe(ps, &rc.province_len, &ptr);
+		rc.city = bbip_getstr_threadsafe(ps, &rc.city_len, &ptr);
+		rc.district = bbip_getstr_threadsafe(ps, &rc.district_len, &ptr);
+		rc.isp = bbip_getstr_threadsafe(ps, &rc.isp_len, &ptr);
+		rc.type = bbip_getstr_threadsafe(ps, &rc.type_len, &ptr);
+		rc.desc = bbip_getstr_threadsafe(ps, &rc.desc_len, &ptr);
+		rc.lat = bbip_getstr_threadsafe(ps, &rc.lat_len, &ptr);
+		rc.lng = bbip_getstr_threadsafe(ps, &rc.lng_len, &ptr);
+		return &rc;
+	} else
+	{
+		return NULL;
+	}
 }

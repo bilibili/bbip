@@ -23,8 +23,34 @@ typedef struct
 	int rsrc_id;
 } bbip_t;
 
-bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *errno);
+typedef struct
+{
+	unsigned long start;
+	unsigned long end;
+	unsigned char cidr_bit;
+	char *country;
+	unsigned char country_len;
+	char *province;
+	unsigned char province_len;
+	char *city;
+	unsigned char city_len;
+	char *district;
+	unsigned char district_len;
+	char *isp;
+	unsigned char isp_len;
+	char *type;
+	unsigned char type_len;
+	char *desc;
+	unsigned char desc_len;
+	char *lat;
+	unsigned char lat_len;
+	char *lng;
+	unsigned char lng_len;
+} bbip_result_t;
+
+bbip_t *bbip_init(bbip_t *ps, FILE *fp, int *bbip_errno);
 long bbip_query(bbip_t *ps, unsigned int ip);
+bbip_result_t *bbip_search(bbip_t *ps, unsigned int ip);
 int bbip_preload(bbip_t *ps);
 char *bbip_getstr(bbip_t *ps, unsigned char *len);
 int rangeToCidrSize(uint32_t scanIP, uint32_t from ,uint32_t to);
