@@ -63,6 +63,7 @@ int main(int argc, const char **argv)
         printf("province: %.*s\n", result->province_len, result->province);
         printf("city: %.*s\n", result->city_len, result->city);
         printf("isp: %.*s\n", result->isp_len, result->isp);
+        free(result);
     }
 }
 ```

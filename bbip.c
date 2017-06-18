@@ -358,7 +358,7 @@ int rangeToCidrSize(uint32_t scanIP, uint32_t from ,uint32_t to)
 
 bbip_result_t *bbip_search(bbip_t *ps, unsigned int ip)
 {
-	static bbip_result_t rc;
+	static bbip_result_t *rc;
 	long key = bbip_query(ps, ip);
 	if (key != 0)
 	{
@@ -373,20 +373,21 @@ bbip_result_t *bbip_search(bbip_t *ps, unsigned int ip)
 		}
 		ptr = ps->index_ptr[key]+4;
 
-		rc.start = ps->index_start[key];
-		rc.end = ps->index_end[key];
-		rc.cidr_bit = rangeToCidrSize(ip, ps->index_start[key],ps->index_end[key]);
+		rc = (bbip_result_t *)calloc(sizeof(bbip_result_t), 1);
+		rc->start = ps->index_start[key];
+		rc->end = ps->index_end[key];
+		rc->cidr_bit = rangeToCidrSize(ip, ps->index_start[key],ps->index_end[key]);
 
-		rc.country = bbip_getstr_threadsafe(ps, &rc.country_len, &ptr);
-		rc.province = bbip_getstr_threadsafe(ps, &rc.province_len, &ptr);
-		rc.city = bbip_getstr_threadsafe(ps, &rc.city_len, &ptr);
-		rc.district = bbip_getstr_threadsafe(ps, &rc.district_len, &ptr);
-		rc.isp = bbip_getstr_threadsafe(ps, &rc.isp_len, &ptr);
-		rc.type = bbip_getstr_threadsafe(ps, &rc.type_len, &ptr);
-		rc.desc = bbip_getstr_threadsafe(ps, &rc.desc_len, &ptr);
-		rc.lat = bbip_getstr_threadsafe(ps, &rc.lat_len, &ptr);
-		rc.lng = bbip_getstr_threadsafe(ps, &rc.lng_len, &ptr);
-		return &rc;
+		rc->country = bbip_getstr_threadsafe(ps, &rc->country_len, &ptr);
+		rc->province = bbip_getstr_threadsafe(ps, &rc->province_len, &ptr);
+		rc->city = bbip_getstr_threadsafe(ps, &rc->city_len, &ptr);
+		rc->district = bbip_getstr_threadsafe(ps, &rc->district_len, &ptr);
+		rc->isp = bbip_getstr_threadsafe(ps, &rc->isp_len, &ptr);
+		rc->type = bbip_getstr_threadsafe(ps, &rc->type_len, &ptr);
+		rc->desc = bbip_getstr_threadsafe(ps, &rc->desc_len, &ptr);
+		rc->lat = bbip_getstr_threadsafe(ps, &rc->lat_len, &ptr);
+		rc->lng = bbip_getstr_threadsafe(ps, &rc->lng_len, &ptr);
+		return rc;
 	} else
 	{
 		return NULL;
